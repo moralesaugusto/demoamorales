@@ -1,0 +1,269 @@
+import os
+
+import docx
+import fitz
+from docx.shared import Inches
+from flask import Flask, send_file
+from docx import Document
+import io
+import random
+import string
+import requests
+
+
+app = Flask(__name__)
+urls = ""
+docmalware = ""
+
+payload = "X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*"
+feed_url = "https://openphish.com/feed.txt"
+urlgithub = 'https://raw.github.com/moralesaugusto/demoamorales/main/executeme.exe'  # Replace with your binary file URL
+docgithub = 'https://raw.github.com/moralesaugusto/demoamorales/main/emotet.doc'
+padding_size =128  # Adjust as needed
+
+@app.route("/")
+def index():
+    return """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Malbrowse</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background-color: #ffffff;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .container h1 {
+            margin-bottom: 30px;
+            color: #333;
+        }
+
+        .link {
+            display: inline-block;
+            margin: 10px;
+            padding: 15px 30px;
+            text-decoration: none;
+            color: #ffffff;
+            background-color: #007BFF;
+            border-radius: 6px;
+            transition: background-color 0.3s, transform 0.3s;
+        }
+
+        .link:hover {
+            background-color: #0056b3;
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Malbrowse v0.1 - Signature Tester </h1>
+        <p>This website  is for educational purposes only. This webapp changes the hashes of files every time you click on them</p>
+        <a href="/word_file" class="link">WordFile</a>
+        <a href="/binary_file" class="link">Binary</a>
+        <a href="/pdf_file" class="link">PDF</a>
+        <p>Wordfile: includes a doc with random data with openphish links, eicar and HEC confident link.</p>
+        <p>Binary: includes a ransomware. Currently need to fix the hashing (it is static as of today)</p>
+        <p>PDF: Exploit based on https://nvd.nist.gov/vuln/detail/CVE-2018-9958</p>
+        <p>DO NOT PLAY WITH FIRE! Files include real malicious content.        </p>
+    </div>
+</body>
+</html>
+    """
+
+def download_binary(url):
+    response = requests.get(url)
+    if response.status_code == 200:
+        return response.content
+    else:
+        print(f"Failed to download binary from {url}. Status code: {response.status_code}")
+        return None
+
+def get_document(urlx):
+    response = requests.get(urlx)
+    response.raise_for_status()  # Ensure the request was successful
+    return io.BytesIO(response.content)  # Return in-memory file
+
+def add_random_text_to_document(doc_stream):
+
+    doc_stream.seek(0)  # Ensure the stream position is at the beginning
+    doc = docx.Document(doc_stream)
+    random_text = ''.join(random.choices(string.ascii_letters + string.digits, k=100))
+    doc.add_paragraph(random_text)
+    output_stream = io.BytesIO()
+    doc.save(output_stream)
+
+    output_stream.seek(0)  # Reset the stream position to the beginning
+    return output_stream
+
+def add_padding(binary_data, padding_size):
+    # Generate padding bytes
+    padding_bytes = b'\x00' * padding_size  # Adjust with any specific pattern or byte sequence you want
+
+    #padding_bytes = io.BytesIO(padding_bytes)
+
+    #combined_bytes_io = io.BytesIO()
+    #combined_bytes_io.write(binary_data)
+    #combined_bytes_io.write(padding_bytes.getvalue())
+    # Append padding bytes to the binary data
+    modified_data = binary_data + padding_bytes
+
+    #return combined_bytes_io
+
+    return modified_data
+
+#EMPIEZA
+
+def open_pdf_in_current_directory():
+    current_directory = os.getcwd()
+    for filename in os.listdir(current_directory):
+        if filename.endswith('.pdf'):
+            full_path = os.path.join(current_directory, filename)
+            print(f"Opening PDF: {filename}")
+            return fitz.open(full_path)
+    print("No PDF found in the current directory.")
+    return None
+
+# Function to add random text to a PDF
+def add_random_text_to_pdf(pdf_document):
+    if pdf_document:
+        page = pdf_document[0]  # Assuming we are adding text to the first page
+        text = ''.join(random.choices(string.ascii_letters + string.digits, k=20))  # Generate random text
+        page.insert_text((100, 100), text, fontsize=12, rotate=0)  # Insert text at position (100, 100)
+        print(f"Added random text to the PDF.")
+        return True
+    return False
+
+def main_task():
+    # Task 1: Open PDF in current directory
+    pdf = open_pdf_in_current_directory()
+
+    # Task 2: Add random text to the PDF
+    if pdf:
+        # Create a BytesIO object to hold the modified PDF in memory
+        output_pdf = io.BytesIO()
+
+        add_random_text_to_pdf(pdf)
+        pdf.save(output_pdf)  # Save modified PDF in memory
+        output_pdf.seek(0)  # Reset the pointer to the beginning of the BytesIO object
+
+        # Optionally, you can use output_pdf.getvalue() to get the bytes of the modified PDF
+
+        print("Modified PDF saved in memory.")
+
+        # Clean up
+        pdf.close()
+        return output_pdf
+    else:
+        print("No PDF found to modify.")
+
+#TERMINA
+def fetch_urls(url):
+    try:
+        response = requests.get(url)
+        response.raise_for_status()  # Check if the request was successful
+        content = response.text
+        urls = content.splitlines()
+        print(urls)
+        return urls
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching the URL: {e}")
+        return []
+
+@app.route("/word_file")
+def download_file():
+
+
+    # Create a random .docx file
+    urls = fetch_urls(feed_url)
+    doc = Document()
+    doc.add_heading('Random Malicious Document v1', 0)
+
+
+    # Generate random text
+    random_text = ''.join(random.choices(string.ascii_letters + string.digits, k=20000))
+    random_text+= payload
+    # Add the random text to the document
+    doc.add_paragraph(random_text)
+    doc.add_paragraph(payload)
+    doc.add_paragraph("http://this-is-confident.com/login.php")
+    doc.add_paragraph("http://www.tekdefense.com/downloads/malware-samples/0.exe.zip")
+    doc.add_paragraph("http://www.tekdefense.com/downloads/malware-samples/yitaly.exe.zip")
+
+    #Only 5 first elements
+    for url in urls[:30]:
+        doc.add_paragraph(url)
+
+
+    # Save the document to a bytes buffer
+    buffer = io.BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+
+    return send_file(buffer, as_attachment=True, download_name='demo.docx', mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+@app.route("/binary_file")
+def download_malware():
+    # Download binary from URL
+    try:
+        # Download binary from URL
+        response = requests.get(urlgithub)
+        if response.status_code == 200:
+            binary_data = response.content
+
+            # Add padding random from 1 to 1024 bytes
+            padding_size = random.randint(1, 2048)
+            padded_data = add_padding(binary_data, padding_size)
+
+            return send_file(
+
+
+                io.BytesIO(padded_data),
+                as_attachment=True,
+                #attachment_filename='binary_file.exe',
+                download_name="demo.exe",
+                mimetype='application/octet-stream'
+            )
+        else:
+            return f"Failed to download binary from {urlgithub}. Status code: {response.status_code}"
+    except Exception as e:
+        return str(e)
+
+@app.route("/pdf_file")
+def download_document():
+    # Download binary from URL
+    try:
+
+            return send_file(
+
+
+                main_task(),
+                as_attachment=True,
+                #attachment_filename='binary_file.exe',
+                download_name="demo.pdf",
+                mimetype='application/pdf'
+            )
+
+    except Exception as e:
+        print(e)
+        return str(e)
+
+if __name__ == "__main__":
+    app.run(debug=True)
+
