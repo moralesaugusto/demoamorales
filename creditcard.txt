@@ -3,3 +3,7 @@ This is just an example of random credit card numbers. Only for testing purposes
 VISA, 4532538480834959, 3/2031, 338
 VISA, 4556878085311701, 11/2031, 878
 VISA, 4556840667012925, 2/2031, 234
+
+
+874-28-4531
+374-18-4234
