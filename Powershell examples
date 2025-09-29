@@ -1,4 +1,4 @@
-powershell.exe -NoProfile -ExecutionPolicy Bypass -EncodedCommand [XXXX]
+powershell.exe -NoProfile -ExecutionPolicy Bypass -EncodedCommand [BASE64]
 
 # Enable Remote Desktop (RDP)
 Set-ItemProperty -Path "HKLM:\System\CurrentControlSet\Control\Terminal Server" -Name "fDenyTSConnections" -Value 0
